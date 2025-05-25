@@ -1,27 +1,93 @@
 using ModelContextProtocol.Client;
 
+// 自动检测 Server 项目路径
+string serverProjectPath = "MCP.Demo.Server/MCP.Demo.Server.csproj";
+if (!File.Exists(serverProjectPath))
+{
+    var altPath = Path.Combine("..", "MCP.Demo.Server", "MCP.Demo.Server.csproj");
+    if (File.Exists(altPath))
+        serverProjectPath = altPath;
+}
+
 var clientTransport = new StdioClientTransport(new StdioClientTransportOptions
 {
     Name = "MCP",
     Command = "dotnet",
-    Arguments = ["run", "--project", "../MCP.Demo.Server/MCP.Demo.Server.csproj"],
+    Arguments = ["run", "--project", serverProjectPath],
 });
 
 // 创建 MCP 客户端
 var client = await McpClientFactory.CreateAsync(clientTransport);
 
-// 列出所有可用工具
-Console.WriteLine("可用工具列表:");
-foreach (var tool in await client.ListToolsAsync())
+
+// 交互式工具调用
+while (true)
 {
-    Console.WriteLine($"{tool.Name} ({tool.Description})");
+    var tools = (await client.ListToolsAsync()).ToList();
+    Console.WriteLine("\n📋 可用工具列表:");
+    for (int i = 0; i < tools.Count; i++)
+    {
+        Console.WriteLine($"[{i}] {tools[i].Name} - {tools[i].Description}");
+    }
+    Console.WriteLine("[Q] 退出");
+
+    Console.Write("\n🔧 请选择要调用的工具编号: ");
+    var input = Console.ReadLine();
+    if (string.Equals(input, "q", StringComparison.OrdinalIgnoreCase))
+        break;
+
+    if (!int.TryParse(input, out int idx) || idx < 0 || idx >= tools.Count)
+    {
+        Console.WriteLine("❌ 输入无效，请重试。");
+        continue;
+    }    var tool = tools[idx];
+    var argsDict = new Dictionary<string, object?>();
+
+    // 根据工具名称手动处理参数输入
+    switch (tool.Name)
+    {
+        case "Echo":
+            Console.Write("📝 请输入参数 message (要回显的消息): ");
+            var message = Console.ReadLine();
+            argsDict["message"] = message;
+            break;
+        case "CreateFile":
+            Console.Write("📝 请输入参数 filePath (文件路径): ");
+            var filePath = Console.ReadLine();
+            Console.Write("📝 请输入参数 content (文件内容): ");
+            var content = Console.ReadLine();
+            argsDict["filePath"] = filePath;
+            argsDict["content"] = content;
+            break;
+        case "DeleteFile":
+        case "FileExists":
+        case "ReadFile":
+            Console.Write("📝 请输入参数 filePath (文件路径): ");
+            var path = Console.ReadLine();
+            argsDict["filePath"] = path;
+            break;
+        default:
+            Console.WriteLine("⚠️ 未知工具，跳过参数输入");
+            break;
+    }
+
+    try
+    {
+        var result = await client.CallToolAsync(
+            tool.Name,
+            argsDict,
+            cancellationToken: CancellationToken.None);
+
+        var textContent = result.Content.FirstOrDefault(c => c.Type == "text");
+        if (textContent != null)
+            Console.WriteLine($"\n📤 结果: {textContent.Text}");
+        else
+            Console.WriteLine("\n⚠️ 无文本结果。");
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"❌ 调用工具时出错: {ex.Message}");
+    }
 }
 
-// 调用 echo 工具
-var result = await client.CallToolAsync(
-    "Echo",
-    new Dictionary<string, object?>() { ["message"] = "Hello MCP!" },
-    cancellationToken: CancellationToken.None);
-
-// 输出 echo 工具返回的文本内容
-Console.WriteLine(result.Content.First(c => c.Type == "text").Text);
+Console.WriteLine("👋 程序已退出。");

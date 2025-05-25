@@ -1,0 +1,1 @@
+dotnet run --project ./MCP.Demo.Client/MCP.Demo.Client.csproj
