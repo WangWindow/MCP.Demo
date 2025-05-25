@@ -40,31 +40,32 @@ while (true)
     {
         Console.WriteLine("❌ 输入无效，请重试。");
         continue;
-    }    var tool = tools[idx];
+    }
+    var tool = tools[idx];
     var argsDict = new Dictionary<string, object?>();
 
-    // 根据工具名称手动处理参数输入
+    // 根据工具名称手动处理参数输入，支持相对和绝对路径
     switch (tool.Name)
     {
         case "Echo":
             Console.Write("📝 请输入参数 message (要回显的消息): ");
-            var message = Console.ReadLine();
-            argsDict["message"] = message;
+            argsDict["message"] = Console.ReadLine();
             break;
         case "CreateFile":
-            Console.Write("📝 请输入参数 filePath (文件路径): ");
-            var filePath = Console.ReadLine();
+            Console.Write("📝 请输入参数 filePath (支持相对或绝对路径): ");
+            argsDict["filePath"] = Console.ReadLine();
             Console.Write("📝 请输入参数 content (文件内容): ");
-            var content = Console.ReadLine();
-            argsDict["filePath"] = filePath;
-            argsDict["content"] = content;
+            argsDict["content"] = Console.ReadLine();
             break;
         case "DeleteFile":
         case "FileExists":
         case "ReadFile":
-            Console.Write("📝 请输入参数 filePath (文件路径): ");
-            var path = Console.ReadLine();
-            argsDict["filePath"] = path;
+            Console.Write("📝 请输入参数 filePath (支持相对或绝对路径): ");
+            argsDict["filePath"] = Console.ReadLine();
+            break;
+        case "GetFileInfo":
+            Console.Write("📝 请输入参数 path (支持相对或绝对路径): ");
+            argsDict["path"] = Console.ReadLine();
             break;
         default:
             Console.WriteLine("⚠️ 未知工具，跳过参数输入");
